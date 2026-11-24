@@ -1,4 +1,5 @@
-# Python 3.11 기준 (Django 6.0은 Python 3.12 이상이라 5.2 LTS 사용)
 Django==5.2.*
 psycopg[binary]
 python-dotenv
+djangorestframework
+djangorestframework-simplejwt
