@@ -3,3 +3,6 @@ psycopg[binary]
 python-dotenv
 djangorestframework
 djangorestframework-simplejwt
+celery
+redis
+packaging

@@ -60,6 +60,7 @@ class AnalysisJobSerializer(serializers.ModelSerializer):
             "memo",
             "expected_action",
             "status",
+            "celery_task_id",
             "result_message",
             "error_message",
             "created_at",
@@ -67,6 +68,7 @@ class AnalysisJobSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "status",
+            "celery_task_id",
             "result_message",
             "error_message",
             "created_at",
@@ -107,7 +109,6 @@ class AnalysisJobDetailSerializer(AnalysisJobSerializer):
         fields = AnalysisJobSerializer.Meta.fields + [
             "video_duration_sec",
             "video_fps",
-            "celery_task_id",
             "started_at",
             "processing_seconds",
             "predictions",
@@ -115,7 +116,6 @@ class AnalysisJobDetailSerializer(AnalysisJobSerializer):
         read_only_fields = AnalysisJobSerializer.Meta.read_only_fields + [
             "video_duration_sec",
             "video_fps",
-            "celery_task_id",
             "started_at",
         ]
 
