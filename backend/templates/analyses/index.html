@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}AI 동작 분석{% endblock %}
+
+{% block content %}
+<div class="layout">
+    {% include "analyses/_sidebar.html" %}
+
+    <section class="content">
+        <h1 class="page-title">AI 동작 분석</h1>
+
+        <div class="card">
+            <div class="tabs">
+                <button type="button" class="tab is-active" data-tab="upload">영상 업로드</button>
+                <button type="button" class="tab" data-tab="webcam">IP Webcam</button>
+            </div>
+
+            <form id="upload-form" class="tab-panel is-active" data-panel="upload">
+                <div class="notice">
+                    <strong>업로드 안내</strong>
+                    <ul>
+                        <li>지원 형식: {{ allowed_suffixes }}</li>
+                        <li>동작이 3초 이상 담긴 영상을 권장합니다. 앞뒤의 정지 구간은 자동으로 제외됩니다.</li>
+                        <li>머리부터 발끝까지 보이는 영상일수록 인식이 정확합니다.</li>
+                    </ul>
+                </div>
+                <label class="field">
+                    <span>영상 파일</span>
+                    <input type="file" name="video_file" accept="video/*" required>
+                </label>
+                <label class="field">
+                    <span>제목 (선택)</span>
+                    <input type="text" name="title" maxlength="100" placeholder="예: 무릎 펴기 연습">
+                </label>
+                <label class="field">
+                    <span>수행한 동작 (선택)</span>
+                    <select name="expected_action">
+                        <option value="">선택 안 함</option>
+                        {% for value, label in expected_actions %}
+                            <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <button type="submit" class="btn btn-primary">AI 분석 시작</button>
+            </form>
+
+            <form id="webcam-form" class="tab-panel" data-panel="webcam">
+                <div class="notice">
+                    <strong>촬영 안내</strong>
+                    <ul>
+                        <li>[녹화 시작]을 누르면 촬영이 시작되고, [녹화 종료]를 누르면 멈춥니다.</li>
+                        <li>최소 {{ page_config.cameraMinSeconds }}초 이상 녹화해야 종료할 수 있으며, {{ page_config.cameraMaxSeconds }}초가 지나면 자동으로 종료되고 분석이 시작됩니다.</li>
+                        <li>휴대폰을 가로로 세우고, 머리부터 발끝까지 화면에 들어오도록 거리를 두세요.</li>
+                        <li>정면 또는 대각선에서 촬영하면 인식이 더 안정적입니다.</li>
+                        <li>녹화 중에는 다른 기기에서 카메라 화면을 열지 마세요(동시에 한 곳만 연결됩니다).</li>
+                        <li>판정은 녹화가 끝난 뒤 이루어지며, 결과 화면에서 확인할 수 있습니다.</li>
+                    </ul>
+                </div>
+                <label class="field">
+                    <span>카메라</span>
+                    <select name="camera_key" required>
+                        {% for key in camera_keys %}
+                            <option value="{{ key }}">{{ key }}</option>
+                        {% empty %}
+                            <option value="">등록된 카메라가 없습니다</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="field">
+                    <span>제목 (선택)</span>
+                    <input type="text" name="title" maxlength="100" placeholder="예: 팔 뻗기 웹캠">
+                </label>
+                <label class="field">
+                    <span>수행할 동작 (선택)</span>
+                    <select name="expected_action">
+                        <option value="">선택 안 함</option>
+                        {% for value, label in expected_actions %}
+                            <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <button type="submit" class="btn btn-primary">녹화 시작</button>
+            </form>
+        </div>
+
+        <p id="form-error" class="form-error" hidden></p>
+
+        {% include "analyses/_status_card.html" %}
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ page_config|json_script:"page-config" }}
+<script src="{% static 'js/analyses.js' %}"></script>
+{% endblock %}

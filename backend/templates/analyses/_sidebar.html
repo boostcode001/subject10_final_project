@@ -1,0 +1,9 @@
+<aside class="sidebar">
+    <div class="sidebar-head">
+        <h2>내 분석 기록</h2>
+        <a class="btn btn-small" href="{% url 'analyses:index' %}">+ 새 분석</a>
+    </div>
+    <ul id="sidebar-list" class="sidebar-list" data-active-id="{{ active_job_id|default:'' }}">
+        <li class="sidebar-empty">불러오는 중…</li>
+    </ul>
+</aside>

@@ -1,0 +1,14 @@
+<div id="status-card" class="card status-card" {% if not show_status %}hidden{% endif %}>
+    <h2>분석 상태</h2>
+    <ol class="stepper">
+        <li data-step="waiting">대기</li>
+        <li data-step="recording" class="step-webcam">영상 수집</li>
+        <li data-step="analyzing">AI 분석</li>
+        <li data-step="completed">완료</li>
+    </ol>
+    <p id="status-message" class="status-message"></p>
+    <div id="recording-bar" class="recording-bar" hidden>
+        <span id="recording-timer"></span>
+        <button type="button" id="stop-button" class="btn btn-danger" disabled>녹화 종료</button>
+    </div>
+</div>

@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}분석 결과 #{{ job.id }}{% endblock %}
+
+{% block content %}
+<div class="layout">
+    {% include "analyses/_sidebar.html" with active_job_id=job.id %}
+
+    <section class="content">
+        <div class="result-head">
+            <h1 class="page-title">{{ job.title|default:"제목 없음" }} <small>#{{ job.id }}</small></h1>
+            <span class="badge badge-{{ job.status|lower }}">{{ job.get_status_display }}</span>
+        </div>
+
+        <p id="form-error" class="form-error" hidden></p>
+
+        {% if not is_finished %}
+            {% include "analyses/_status_card.html" with show_status=True %}
+        {% elif job.status == "FAILED" %}
+            <div class="alert alert-error">
+                <strong>분석에 실패했습니다.</strong>
+                <p>{{ job.error_message }}</p>
+            </div>
+        {% endif %}
+
+        {% if job.status == "COMPLETED" %}
+            <div class="card">
+                <h2>분석 정보</h2>
+                <table class="table">
+                    <tr><th>입력 방식</th><td>{{ job.get_input_type_display }}{% if job.camera_key %} ({{ job.camera_key }}){% endif %}</td></tr>
+                    <tr><th>수행한 동작(선택)</th><td>{{ job.get_expected_action_display|default:"선택 안 함" }}</td></tr>
+                    {% if job.capture_seconds %}
+                        <tr><th>녹화 시간</th><td>{{ job.capture_seconds }}초</td></tr>
+                    {% endif %}
+                    <tr><th>영상 길이 / FPS</th><td>{{ job.video_duration_sec|floatformat:1 }}초 / {{ job.video_fps|floatformat:1 }}</td></tr>
+                    <tr><th>처리 시간</th><td>{{ job.processing_seconds|floatformat:1 }}초</td></tr>
+                    <tr><th>결과</th><td>{{ job.result_message|default:"" }}</td></tr>
+                </table>
+            </div>
+
+            {% for item in people %}
+                <article class="card person-card level-{{ item.uncertainty.level }}">
+                    <header class="person-head">
+                        <h2>사람 {{ forloop.counter }} <small>(Track {{ item.person.track_id }})</small></h2>
+                        <span class="badge badge-level-{{ item.uncertainty.level }}">{{ item.uncertainty.level_text }}</span>
+                    </header>
+
+                    <p class="person-action">
+                        {{ item.person.get_action_label_display }}
+                        <span class="confidence">신뢰도 {% widthratio item.person.confidence 1 100 %}%</span>
+                    </p>
+
+                    {% if item.uncertainty.reasons %}
+                        <div class="uncertain-box">
+                            <strong>왜 확실하지 않나요?</strong>
+                            <ul>
+                                {% for reason in item.uncertainty.reasons %}
+                                    <li>{{ reason }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    {% if item.uncertainty.top_candidates %}
+                        <p class="candidates">
+                            후보 동작:
+                            {% for candidate in item.uncertainty.top_candidates %}
+                                <span class="chip">{{ candidate.display }} {% widthratio candidate.probability 1 100 %}%</span>
+                            {% endfor %}
+                        </p>
+                    {% endif %}
+
+                    <p class="quality">
+                        관절 인식 정도 {% widthratio item.person.mean_keypoint_conf 1 100 %}% ·
+                        사람을 찾은 프레임 {% widthratio item.person.valid_frame_ratio 1 100 %}%
+                    </p>
+
+                    {% if item.segments %}
+                        <table class="table table-compact">
+                            <thead>
+                                <tr><th>구간</th><th>시간</th><th>길이</th><th>동작</th><th>신뢰도</th></tr>
+                            </thead>
+                            <tbody>
+                                {% for segment in item.segments %}
+                                    <tr>
+                                        <td>{{ segment.segment_no }}</td>
+                                        <td>{{ segment.start_sec|floatformat:1 }}~{{ segment.end_sec|floatformat:1 }}초</td>
+                                        <td>{{ segment.duration_sec|floatformat:1 }}초</td>
+                                        <td>{{ segment.get_action_label_display }}</td>
+                                        <td>{% widthratio segment.confidence 1 100 %}%</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% endif %}
+                </article>
+            {% empty %}
+                <div class="notice">판정된 사람이 없습니다. {{ job.result_message|default:"" }}</div>
+            {% endfor %}
+
+            <div class="notice notice-muted">
+                <p>신뢰도는 모델이 판정을 얼마나 확신하는지를 나타내며 <strong>정확도가 아닙니다.</strong>
+                촬영 거리·각도·조명·사람이 다르면 값이 달라지므로, 입력 방식 간 신뢰도 차이를 성능 차이로 해석하지 마세요.</p>
+                <p>신뢰도 55~65%는 "판단 불확실", 55% 미만은 "판정 불가"로 표시됩니다.</p>
+            </div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ page_config|json_script:"page-config" }}
+<script src="{% static 'js/analyses.js' %}"></script>
+{% endblock %}
