@@ -1,0 +1,14 @@
+# 팀 모델 학습 환경과 동일 버전 (Python 3.11.18 기준)
+mediapipe==1.2.3
+scikit-learn==1.9.1
+joblib==1.6.0
+numpy==2.4.6
+scipy==1.17.1
+pandas==3.1.1
+opencv-python==5.0.0.93
+ultralytics==8.4.203
+
+# FastAPI 서버
+fastapi
+uvicorn[standard]
+python-multipart

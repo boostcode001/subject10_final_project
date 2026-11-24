@@ -1,0 +1,35 @@
+# ---------- Python ----------
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# ---------- 환경 변수 (비밀정보) ----------
+.env
+
+# ---------- 대용량 모델 가중치 (README에 받는 방법 기록) ----------
+ai_service/models/*.task
+ai_service/models/*.pt
+
+# ---------- 테스트·업로드 영상 ----------
+test_videos/
+*.mp4
+*.avi
+*.mov
+*.mkv
+backend/media/
+
+# ---------- Django ----------
+db.sqlite3
+*.sqlite3
+backend/staticfiles/
+
+# ---------- 로그·임시 ----------
+*.log
+*.bak*
+.DS_Store
+
+# ---------- IDE ----------
+.vscode/
+.idea/
