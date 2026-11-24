@@ -1,9 +1,9 @@
 """
 action_inference.py
-사람별 38-D 프레임 목록 → 30 Step Sequence → Random Forest 예측 → 동작·신뢰도 정리
+사람별 38-D 프레임 목록 → 움직임 구간 검출 → 구간마다 30 Step Sequence → Random Forest 예측
 
 - 30 Step 변환과 1,140개 펼치기는 수업 코드(src.sequence_utils)를 그대로 사용
-- 2-3단계: 사람마다 영상 전체를 구간 1개로 보고 1회 예측 (A안)
+- 2-4단계: 2초 이상 움직임 구간마다 1회 예측, 대표값은 신뢰도가 가장 높은 구간
 """
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 
 from services.pose_pipeline import TrackFrames, VideoResult
+from services.segmenter import find_segments
 from src.sequence_utils import flatten_sequence, resample_sequence
 
 
@@ -53,31 +54,46 @@ def apply_threshold(label: str, confidence: float) -> str:
     return label
 
 
-# ④ 사람 1명 → 응답용 딕셔너리
+# ④ 사람 1명 → 구간별 예측 → 응답용 딕셔너리
 def predict_track(artifacts: dict, track: TrackFrames) -> dict | None:
     if track.valid_frames < MIN_VALID_FRAMES:
         return None
 
-    label, confidence, probabilities = predict_sequence(
-        artifacts, track.features, track.frame_ids
-    )
-    final_label = apply_threshold(label, confidence)
+    found = find_segments(track.features, track.times_sec)
 
-    segment = {
-        "segment_no": 1,
-        "start_sec": round(track.times_sec[0], 2),
-        "end_sec": round(track.times_sec[-1], 2),
-        "action_label": final_label,
-        "confidence": round(confidence, 4),
-    }
+    segments = []
+    discarded = found.discarded
+    for segment in found.segments:
+        start, end = segment.start_index, segment.end_index + 1
+        features = track.features[start:end]
+        if len(features) < MIN_VALID_FRAMES:
+            discarded += 1
+            continue
 
+        label, confidence, probabilities = predict_sequence(
+            artifacts, features, track.frame_ids[start:end]
+        )
+        segments.append({
+            "segment_no": len(segments) + 1,
+            "start_sec": round(segment.start_sec, 2),
+            "end_sec": round(segment.end_sec, 2),
+            "motion_sec": round(segment.motion_sec, 2),
+            "action_label": apply_threshold(label, confidence),
+            "confidence": round(confidence, 4),
+            "probabilities": probabilities,
+        })
+
+    if not segments:
+        return None
+
+    best = max(segments, key=lambda item: item["confidence"])
     return {
         "track_id": track.track_id,
-        "action_label": final_label,
-        "confidence": round(confidence, 4),
-        "probabilities": probabilities,
-        "segment_count": 1,
-        "segments": [segment],
+        "action_label": best["action_label"],
+        "confidence": best["confidence"],
+        "segment_count": len(segments),
+        "discarded_segments": discarded,
+        "segments": segments,
         "valid_frames": track.valid_frames,
         "valid_frame_ratio": round(track.valid_frame_ratio, 4),
         "mean_keypoint_conf": round(track.mean_keypoint_conf, 4),
