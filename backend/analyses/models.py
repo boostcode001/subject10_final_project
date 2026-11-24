@@ -122,6 +122,7 @@ class ActionSegment(models.Model):
     end_sec = models.FloatField()
     action_label = models.CharField(max_length=50, choices=ActionLabel.choices)
     confidence = models.FloatField()
+    probabilities = models.JSONField(null=True, blank=True)
 
     class Meta:
         ordering = ["person", "segment_no"]

@@ -4,16 +4,44 @@ import time
 
 import cv2
 import numpy as np
+import redis
 from django.conf import settings
 from django.core.files import File
 
 MIN_FRAMES = 30
 READ_FAIL_LIMIT = 30
 JPEG_QUALITY = 90
+STOP_CHECK_INTERVAL_SEC = 0.3
 
 
 class CameraError(Exception):
     """카메라 수집 실패. 메시지는 그대로 사용자에게 보여줄 수 있는 문장이다."""
+
+
+def _redis():
+    return redis.Redis.from_url(settings.REDIS_URL)
+
+
+def _stop_key(job_id):
+    return f"camera:stop:{job_id}"
+
+
+def request_stop(job_id):
+    _redis().set(_stop_key(job_id), "1", ex=settings.CAMERA_MAX_SECONDS + 60)
+
+
+def _clear_stop(job_id):
+    try:
+        _redis().delete(_stop_key(job_id))
+    except redis.RedisError:
+        pass
+
+
+def _stop_requested(client, job_id):
+    try:
+        return bool(client.exists(_stop_key(job_id)))
+    except redis.RedisError:
+        return False
 
 
 def get_camera_url(camera_key):
@@ -36,12 +64,25 @@ def _open_camera(url):
     return capture
 
 
-def _collect_frames(capture, seconds):
+def _collect_frames(capture, job_id):
+    client = _redis()
     encoded = []
     failures = 0
+    last_check = 0.0
     started = time.monotonic()
 
-    while time.monotonic() - started < seconds:
+    while True:
+        elapsed = time.monotonic() - started
+        if elapsed >= settings.CAMERA_MAX_SECONDS:
+            break
+        if (
+            elapsed >= settings.CAMERA_MIN_SECONDS
+            and elapsed - last_check >= STOP_CHECK_INTERVAL_SEC
+        ):
+            last_check = elapsed
+            if _stop_requested(client, job_id):
+                break
+
         ok, frame = capture.read()
         if not ok:
             failures += 1
@@ -68,13 +109,14 @@ def _write_video(encoded, fps, path):
 
 def capture_to_job(job):
     url = get_camera_url(job.camera_key)
-    seconds = job.capture_seconds or settings.CAMERA_CAPTURE_SECONDS
+    _clear_stop(job.id)
 
     capture = _open_camera(url)
     try:
-        encoded, elapsed = _collect_frames(capture, seconds)
+        encoded, elapsed = _collect_frames(capture, job.id)
     finally:
         capture.release()
+        _clear_stop(job.id)
 
     if len(encoded) < MIN_FRAMES:
         raise CameraError(f"수집된 프레임이 부족합니다 ({len(encoded)}개).")
@@ -89,4 +131,5 @@ def capture_to_job(job):
     finally:
         os.remove(temp_path)
 
+    job.capture_seconds = round(elapsed)
     return {"frames": len(encoded), "fps": round(fps, 2), "seconds": round(elapsed, 2)}

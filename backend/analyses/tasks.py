@@ -1,6 +1,7 @@
 import logging
 
 from celery import shared_task
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
@@ -49,6 +50,7 @@ def _save_result(job, result):
                     end_sec=segment["end_sec"],
                     action_label=_checked_label(segment["action_label"]),
                     confidence=segment["confidence"],
+                    probabilities=segment.get("probabilities"),
                 )
                 for segment in item.get("segments", [])
             ]
@@ -64,11 +66,15 @@ def _capture_if_webcam(job):
     if job.input_type != InputType.WEBCAM:
         return
     logger.info(
-        "작업 %s 카메라 수집 시작: %s, %s초", job.id, job.camera_key, job.capture_seconds
+        "작업 %s 녹화 시작: %s (최소 %s초, 최대 %s초)",
+        job.id,
+        job.camera_key,
+        settings.CAMERA_MIN_SECONDS,
+        settings.CAMERA_MAX_SECONDS,
     )
     info = capture_to_job(job)
-    job.save(update_fields=["video_file"])
-    logger.info("작업 %s 카메라 수집 완료: %s", job.id, info)
+    job.save(update_fields=["video_file", "capture_seconds"])
+    logger.info("작업 %s 녹화 완료: %s", job.id, info)
 
 
 @shared_task

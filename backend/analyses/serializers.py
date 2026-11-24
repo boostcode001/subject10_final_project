@@ -4,9 +4,22 @@ from django.conf import settings
 from rest_framework import serializers
 
 from .models import ActionSegment, AnalysisJob, InputType, JobStatus, PersonPrediction
+from .uncertainty import evaluate_person, label_display
 
 ALLOWED_VIDEO_SUFFIXES = {".mp4", ".avi", ".mov", ".mkv"}
 FINISHED_STATUSES = {JobStatus.COMPLETED, JobStatus.FAILED}
+
+
+def job_phase(job):
+    if job.status == JobStatus.PENDING:
+        return "waiting"
+    if job.status == JobStatus.PROCESSING:
+        if job.input_type == InputType.WEBCAM and job.capture_seconds is None:
+            return "recording"
+        return "analyzing"
+    if job.status == JobStatus.COMPLETED:
+        return "completed"
+    return "failed"
 
 
 class ActionSegmentSerializer(serializers.ModelSerializer):
@@ -24,6 +37,7 @@ class ActionSegmentSerializer(serializers.ModelSerializer):
             "action_label",
             "action_label_display",
             "confidence",
+            "probabilities",
         ]
 
 
@@ -32,6 +46,7 @@ class PersonPredictionSerializer(serializers.ModelSerializer):
         source="get_action_label_display", read_only=True
     )
     segments = ActionSegmentSerializer(many=True, read_only=True)
+    uncertainty = serializers.SerializerMethodField()
 
     class Meta:
         model = PersonPrediction
@@ -43,12 +58,18 @@ class PersonPredictionSerializer(serializers.ModelSerializer):
             "segment_count",
             "mean_keypoint_conf",
             "valid_frame_ratio",
+            "uncertainty",
             "segments",
         ]
+
+    def get_uncertainty(self, person):
+        return evaluate_person(person)
 
 
 class AnalysisJobSerializer(serializers.ModelSerializer):
     username = serializers.ReadOnlyField(source="user.username")
+    phase = serializers.SerializerMethodField()
+    top_action = serializers.SerializerMethodField()
 
     class Meta:
         model = AnalysisJob
@@ -63,6 +84,8 @@ class AnalysisJobSerializer(serializers.ModelSerializer):
             "memo",
             "expected_action",
             "status",
+            "phase",
+            "top_action",
             "celery_task_id",
             "result_message",
             "error_message",
@@ -70,6 +93,7 @@ class AnalysisJobSerializer(serializers.ModelSerializer):
             "finished_at",
         ]
         read_only_fields = [
+            "capture_seconds",
             "status",
             "celery_task_id",
             "result_message",
@@ -77,6 +101,20 @@ class AnalysisJobSerializer(serializers.ModelSerializer):
             "created_at",
             "finished_at",
         ]
+
+    def get_phase(self, job):
+        return job_phase(job)
+
+    def get_top_action(self, job):
+        people = list(job.predictions.all())
+        if not people:
+            return None
+        best = max(people, key=lambda person: person.confidence)
+        return {
+            "label": best.action_label,
+            "display": label_display(best.action_label),
+            "confidence": best.confidence,
+        }
 
     def validate_video_file(self, video_file):
         if video_file is None:
@@ -98,7 +136,6 @@ class AnalysisJobSerializer(serializers.ModelSerializer):
                     {"video_file": "영상 업로드 방식은 영상 파일이 필요합니다."}
                 )
             attrs.pop("camera_key", None)
-            attrs.pop("capture_seconds", None)
             return attrs
 
         if attrs.get("video_file"):
@@ -114,18 +151,6 @@ class AnalysisJobSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"camera_key": f"허용되지 않은 카메라입니다. 선택 가능: {allowed}"}
             )
-
-        seconds = attrs.get("capture_seconds") or settings.CAMERA_CAPTURE_SECONDS
-        if not settings.CAMERA_MIN_SECONDS <= seconds <= settings.CAMERA_MAX_SECONDS:
-            raise serializers.ValidationError(
-                {
-                    "capture_seconds": (
-                        f"수집 시간은 {settings.CAMERA_MIN_SECONDS}~"
-                        f"{settings.CAMERA_MAX_SECONDS}초 사이여야 합니다."
-                    )
-                }
-            )
-        attrs["capture_seconds"] = seconds
         return attrs
 
 
@@ -156,13 +181,17 @@ class AnalysisJobUpdateSerializer(serializers.ModelSerializer):
 
 class AnalysisJobStatusSerializer(serializers.ModelSerializer):
     is_finished = serializers.SerializerMethodField()
+    phase = serializers.SerializerMethodField()
 
     class Meta:
         model = AnalysisJob
         fields = [
             "id",
+            "input_type",
             "status",
+            "phase",
             "is_finished",
+            "capture_seconds",
             "result_message",
             "error_message",
             "created_at",
@@ -173,3 +202,6 @@ class AnalysisJobStatusSerializer(serializers.ModelSerializer):
 
     def get_is_finished(self, job):
         return job.status in FINISHED_STATUSES
+
+    def get_phase(self, job):
+        return job_phase(job)

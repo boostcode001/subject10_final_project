@@ -154,7 +154,7 @@ FASTAPI_CONNECT_TIMEOUT_SEC = float(os.getenv("FASTAPI_CONNECT_TIMEOUT_SEC", "5"
 FASTAPI_READ_TIMEOUT_SEC = float(os.getenv("FASTAPI_READ_TIMEOUT_SEC", "420"))
 ANALYSIS_MAX_PEOPLE = int(os.getenv("ANALYSIS_MAX_PEOPLE", "5"))
 
-# IP Webcam / DroidCam 허용 목록 (8단계)
+# IP Webcam / DroidCam 허용 목록 (8단계, 9-A에서 시작·종료 버튼 방식으로 변경)
 def _parse_camera_sources(raw):
     sources = {}
     for item in raw.split(","):
@@ -165,7 +165,13 @@ def _parse_camera_sources(raw):
 
 
 CAMERA_SOURCES = _parse_camera_sources(os.getenv("CAMERA_SOURCES", ""))
-CAMERA_CAPTURE_SECONDS = int(os.getenv("CAMERA_CAPTURE_SECONDS", "10"))
 CAMERA_MIN_SECONDS = 5
 CAMERA_MAX_SECONDS = 10
 CAMERA_TIMEOUT_MSEC = 5000
+
+# 판단 불확실 기준 (9-A, DB 명세서 v2 4장)
+ANALYSIS_UNCERTAIN_CONFIDENCE = 0.65
+ANALYSIS_MIN_KEYPOINT_CONF = 0.70
+ANALYSIS_MIN_VALID_FRAME_RATIO = 0.80
+ANALYSIS_MIN_SEGMENT_SEC = 2.0
+ANALYSIS_MIN_TOP2_MARGIN = 0.15
