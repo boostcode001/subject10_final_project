@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from django.conf import settings
 from rest_framework import serializers
 
 from .models import ActionSegment, AnalysisJob, InputType, JobStatus, PersonPrediction
@@ -56,6 +57,8 @@ class AnalysisJobSerializer(serializers.ModelSerializer):
             "username",
             "input_type",
             "video_file",
+            "camera_key",
+            "capture_seconds",
             "title",
             "memo",
             "expected_action",
@@ -89,16 +92,40 @@ class AnalysisJobSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         input_type = attrs.get("input_type", InputType.UPLOAD)
 
-        if input_type == InputType.WEBCAM:
+        if input_type == InputType.UPLOAD:
+            if not attrs.get("video_file"):
+                raise serializers.ValidationError(
+                    {"video_file": "영상 업로드 방식은 영상 파일이 필요합니다."}
+                )
+            attrs.pop("camera_key", None)
+            attrs.pop("capture_seconds", None)
+            return attrs
+
+        if attrs.get("video_file"):
             raise serializers.ValidationError(
-                {"input_type": "IP Webcam 입력은 8단계에서 지원합니다."}
+                {"video_file": "IP Webcam 방식에는 영상 파일을 함께 보낼 수 없습니다."}
             )
 
-        if input_type == InputType.UPLOAD and not attrs.get("video_file"):
+        camera_key = attrs.get("camera_key")
+        if not camera_key:
+            raise serializers.ValidationError({"camera_key": "카메라를 선택하세요."})
+        if camera_key not in settings.CAMERA_SOURCES:
+            allowed = ", ".join(settings.CAMERA_SOURCES) or "없음"
             raise serializers.ValidationError(
-                {"video_file": "영상 업로드 방식은 영상 파일이 필요합니다."}
+                {"camera_key": f"허용되지 않은 카메라입니다. 선택 가능: {allowed}"}
             )
 
+        seconds = attrs.get("capture_seconds") or settings.CAMERA_CAPTURE_SECONDS
+        if not settings.CAMERA_MIN_SECONDS <= seconds <= settings.CAMERA_MAX_SECONDS:
+            raise serializers.ValidationError(
+                {
+                    "capture_seconds": (
+                        f"수집 시간은 {settings.CAMERA_MIN_SECONDS}~"
+                        f"{settings.CAMERA_MAX_SECONDS}초 사이여야 합니다."
+                    )
+                }
+            )
+        attrs["capture_seconds"] = seconds
         return attrs
 
 

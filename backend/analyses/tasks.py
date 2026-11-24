@@ -4,7 +4,15 @@ from celery import shared_task
 from django.db import transaction
 from django.utils import timezone
 
-from .models import ActionLabel, ActionSegment, AnalysisJob, JobStatus, PersonPrediction
+from .camera_capture import CameraError, capture_to_job
+from .models import (
+    ActionLabel,
+    ActionSegment,
+    AnalysisJob,
+    InputType,
+    JobStatus,
+    PersonPrediction,
+)
 from .services import AIServiceError, request_prediction
 
 logger = logging.getLogger(__name__)
@@ -52,6 +60,17 @@ def _save_result(job, result):
     job.result_message = result.get("message") or f"분석 완료: {len(predictions)}명"
 
 
+def _capture_if_webcam(job):
+    if job.input_type != InputType.WEBCAM:
+        return
+    logger.info(
+        "작업 %s 카메라 수집 시작: %s, %s초", job.id, job.camera_key, job.capture_seconds
+    )
+    info = capture_to_job(job)
+    job.save(update_fields=["video_file"])
+    logger.info("작업 %s 카메라 수집 완료: %s", job.id, info)
+
+
 @shared_task
 def run_analysis_job(job_id):
     try:
@@ -67,14 +86,15 @@ def run_analysis_job(job_id):
     job.status = JobStatus.PROCESSING
     job.started_at = timezone.now()
     job.save(update_fields=["status", "started_at"])
-    logger.info("작업 %s 처리 시작: FastAPI 호출", job_id)
 
     try:
+        _capture_if_webcam(job)
+        logger.info("작업 %s FastAPI 호출", job_id)
         result = request_prediction(job)
         _save_result(job, result)
         job.status = JobStatus.COMPLETED
-    except AIServiceError as error:
-        logger.warning("작업 %s AI 서버 실패: %s", job_id, error)
+    except (CameraError, AIServiceError) as error:
+        logger.warning("작업 %s 실패: %s", job_id, error)
         job.status = JobStatus.FAILED
         job.error_message = str(error)[:1000]
     except Exception as error:

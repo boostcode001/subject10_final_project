@@ -153,3 +153,19 @@ FASTAPI_BASE_URL = os.getenv("FASTAPI_BASE_URL", "http://localhost:8001")
 FASTAPI_CONNECT_TIMEOUT_SEC = float(os.getenv("FASTAPI_CONNECT_TIMEOUT_SEC", "5"))
 FASTAPI_READ_TIMEOUT_SEC = float(os.getenv("FASTAPI_READ_TIMEOUT_SEC", "420"))
 ANALYSIS_MAX_PEOPLE = int(os.getenv("ANALYSIS_MAX_PEOPLE", "5"))
+
+# IP Webcam / DroidCam 허용 목록 (8단계)
+def _parse_camera_sources(raw):
+    sources = {}
+    for item in raw.split(","):
+        key, _, url = item.partition("=")
+        if key.strip() and url.strip():
+            sources[key.strip()] = url.strip()
+    return sources
+
+
+CAMERA_SOURCES = _parse_camera_sources(os.getenv("CAMERA_SOURCES", ""))
+CAMERA_CAPTURE_SECONDS = int(os.getenv("CAMERA_CAPTURE_SECONDS", "10"))
+CAMERA_MIN_SECONDS = 5
+CAMERA_MAX_SECONDS = 10
+CAMERA_TIMEOUT_MSEC = 5000

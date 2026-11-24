@@ -23,7 +23,7 @@ SMOOTH_SEC = 0.5                                 # 움직임 양을 0.5초 단�
 THRESHOLD_RATIO = float(os.getenv("SEGMENT_THRESHOLD_RATIO", "0.25"))
 MIN_MOTION_RANGE = float(os.getenv("SEGMENT_MIN_MOTION_RANGE", "0.02"))
 MERGE_GAP_SEC = float(os.getenv("SEGMENT_MERGE_GAP_SEC", "0.5"))
-MIN_SEGMENT_SEC = float(os.getenv("SEGMENT_MIN_SEC", "2.0"))
+MIN_SEGMENT_SEC = float(os.getenv("SEGMENT_MIN_SEC", "1.0"))
 PAD_SEC = float(os.getenv("SEGMENT_PAD_SEC", "1.0"))
 
 
