@@ -207,3 +207,30 @@ a { color: var(--color-primary); text-decoration: none; }
     .layout { grid-template-columns: 1fr; }
     .sidebar { position: static; }
 }
+
+/* 관리자 대시보드 */
+.dashboard { display: flex; flex-direction: column; gap: 16px; }
+.muted { color: var(--color-muted); margin: 4px 0 0; font-size: 14px; }
+.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.stat-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.stat-label { font-size: 13px; color: var(--color-muted); }
+.stat-value { font-size: 26px; }
+.stat-sub { font-size: 13px; color: var(--color-muted); }
+.stat-list { list-style: none; margin: 0; padding: 0; font-size: 14px; display: flex; flex-direction: column; gap: 2px; }
+.chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.chart-box { position: relative; height: 280px; margin-bottom: 12px; }
+.chart-fallback { color: var(--color-danger); font-size: 14px; }
+.chart-note { font-size: 13px; color: var(--color-muted); margin: 8px 0 0; }
+
+@media (max-width: 900px) {
+    .stat-grid { grid-template-columns: 1fr 1fr; }
+    .chart-grid { grid-template-columns: 1fr; }
+}

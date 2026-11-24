@@ -4,7 +4,7 @@ from django.contrib import admin
 from django.urls import include, path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from analyses.page_views import home
+from analyses.page_views import DashboardView, home
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -14,6 +14,7 @@ urlpatterns = [
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("api/", include("analyses.urls")),
     path("analyses/", include("analyses.page_urls")),
+    path("dashboard/", DashboardView.as_view(), name="dashboard"),
     path("", home, name="home"),
 ]
 

@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}관리자 대시보드{% endblock %}
+
+{% block content %}
+<section class="dashboard">
+    <div>
+        <h1 class="page-title">관리자 대시보드</h1>
+        <p class="muted">PostgreSQL에 저장된 전체 분석 작업 기준입니다 (삭제 처리된 작업 포함).</p>
+    </div>
+
+    <div class="stat-grid">
+        <div class="stat-card">
+            <span class="stat-label">전체 작업</span>
+            <strong class="stat-value">{{ summary.total }}</strong>
+            <span class="stat-sub">완료 {{ summary.completed }} · 실패 {{ summary.failed }}</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-label">성공률</span>
+            <strong class="stat-value">{% if summary.success_rate is not None %}{{ summary.success_rate }}%{% else %}-{% endif %}</strong>
+            <span class="stat-sub">완료 ÷ (완료 + 실패)</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-label">입력 방식별 작업</span>
+            <ul class="stat-list">
+                {% for item in inputs %}
+                    <li><strong>{{ item.count }}</strong> {{ item.label }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div class="stat-card">
+            <span class="stat-label">평균 처리 시간 (완료 작업)</span>
+            <strong class="stat-value">{% if summary.avg_processing is not None %}{{ summary.avg_processing }}초{% else %}-{% endif %}</strong>
+            <ul class="stat-list">
+                {% for item in inputs %}
+                    <li>{{ item.label }}: {% if item.avg_processing is not None %}{{ item.avg_processing }}초{% else %}-{% endif %}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <div class="chart-grid">
+        <div class="card">
+            <h2>동작별 예측 건수</h2>
+            <div class="chart-box"><canvas id="action-chart"></canvas></div>
+            <p class="chart-fallback" hidden></p>
+            <table class="table table-compact">
+                <thead><tr><th>동작</th><th>건수</th><th>평균 신뢰도</th></tr></thead>
+                <tbody>
+                    {% for item in actions %}
+                        <tr>
+                            <td>{{ item.label }}</td>
+                            <td>{{ item.count }}</td>
+                            <td>{% if item.avg_confidence is not None %}{% widthratio item.avg_confidence 1 100 %}%{% else %}-{% endif %}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <p class="chart-note">사람 한 명의 대표 동작을 1건으로 셉니다. 평균 신뢰도는 모델이 얼마나 확신했는지를 나타내며 정확도가 아닙니다.</p>
+        </div>
+
+        <div class="card">
+            <h2>상태별 작업 건수</h2>
+            <div class="chart-box"><canvas id="status-chart"></canvas></div>
+            <p class="chart-fallback" hidden></p>
+            <table class="table table-compact">
+                <thead><tr><th>상태</th><th>건수</th></tr></thead>
+                <tbody>
+                    {% for item in statuses %}
+                        <tr><td>{{ item.label }}</td><td>{{ item.count }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>최근 작업 {{ recent_jobs|length }}건</h2>
+        <table class="table table-compact">
+            <thead>
+                <tr><th>ID</th><th>사용자</th><th>제목</th><th>입력</th><th>상태</th><th>대표 동작</th><th>처리 시간</th><th>생성 시각</th></tr>
+            </thead>
+            <tbody>
+                {% for item in recent_jobs %}
+                    <tr>
+                        <td><a href="{% url 'analyses:result' item.job.id %}">#{{ item.job.id }}</a></td>
+                        <td>{{ item.job.user.username }}</td>
+                        <td>{{ item.job.title|default:"-" }}</td>
+                        <td>{{ item.job.get_input_type_display }}</td>
+                        <td><span class="badge badge-{{ item.job.status|lower }}">{{ item.job.get_status_display }}</span></td>
+                        <td>
+                            {% if item.top %}
+                                {{ item.top.get_action_label_display }} ({% widthratio item.top.confidence 1 100 %}%)
+                                {% if item.people > 1 %}<small>외 {{ item.people|add:"-1" }}명</small>{% endif %}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>{% if item.job.processing_seconds is not None %}{{ item.job.processing_seconds|floatformat:1 }}초{% else %}-{% endif %}</td>
+                        <td>{{ item.job.created_at|date:"m-d H:i" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="8">아직 분석 작업이 없습니다.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+{{ chart_data|json_script:"dashboard-data" }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="{% static 'js/dashboard.js' %}"></script>
+{% endblock %}
