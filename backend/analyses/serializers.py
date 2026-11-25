@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from django.conf import settings
+from django.utils import timezone
 from rest_framework import serializers
 
 from .models import ActionSegment, AnalysisJob, InputType, JobStatus, PersonPrediction
@@ -182,6 +183,7 @@ class AnalysisJobUpdateSerializer(serializers.ModelSerializer):
 class AnalysisJobStatusSerializer(serializers.ModelSerializer):
     is_finished = serializers.SerializerMethodField()
     phase = serializers.SerializerMethodField()
+    elapsed_sec = serializers.SerializerMethodField()
 
     class Meta:
         model = AnalysisJob
@@ -197,6 +199,7 @@ class AnalysisJobStatusSerializer(serializers.ModelSerializer):
             "created_at",
             "started_at",
             "finished_at",
+            "elapsed_sec",
             "processing_seconds",
         ]
 
@@ -205,3 +208,10 @@ class AnalysisJobStatusSerializer(serializers.ModelSerializer):
 
     def get_phase(self, job):
         return job_phase(job)
+
+    def get_elapsed_sec(self, job):
+        if job.started_at is None:
+            return None
+        end = job.finished_at or timezone.now()
+        seconds = (end - job.started_at).total_seconds()
+        return round(max(seconds, 0.0), 1)

@@ -119,7 +119,7 @@
         if (!recording) {
             return;
         }
-        const elapsed = status.started_at ? (Date.now() - Date.parse(status.started_at)) / 1000 : 0;
+        const elapsed = status.elapsed_sec ?? 0;
         const minSeconds = config.cameraMinSeconds || 5;
         const maxSeconds = config.cameraMaxSeconds || 10;
         document.getElementById("recording-timer").textContent =
