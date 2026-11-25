@@ -8,3 +8,5 @@ redis
 packaging
 requests
 opencv-python-headless
+gunicorn
+whitenoise

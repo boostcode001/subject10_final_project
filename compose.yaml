@@ -32,6 +32,65 @@ services:
       retries: 10
     restart: unless-stopped
 
+  fastapi:
+    build: ./ai_service
+    ports:
+      - "127.0.0.1:8001:8001"
+    volumes:
+      - ./ai_service/models:/app/models:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 60s
+    restart: unless-stopped
+
+  django:
+    build: ./backend
+    image: subject10_final_project-backend
+    env_file: .env
+    environment: &container_env
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      REDIS_URL: redis://redis:6379/0
+      FASTAPI_BASE_URL: http://fastapi:8001
+      DJANGO_DEBUG: "False"
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./backend/media:/app/media
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/accounts/login/', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    restart: unless-stopped
+
+  celery:
+    image: subject10_final_project-backend
+    command: celery -A config worker -l info --concurrency=2
+    env_file: .env
+    environment: *container_env
+    volumes:
+      - ./backend/media:/app/media
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      fastapi:
+        condition: service_started
+      django:
+        condition: service_started
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:

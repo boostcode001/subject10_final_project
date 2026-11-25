@@ -2,6 +2,7 @@
 config/settings.py
 subject10_final_project 백엔드(Django) 설정
 - 비밀값과 DB 접속 정보는 최상위 .env에서 읽음 (Git에 올리지 않음)
+- Docker 실행 시 접속 주소는 compose.yaml의 environment가 덮어씀
 """
 import os
 from pathlib import Path
@@ -36,6 +37,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -98,6 +100,13 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# 11단계: 배포(DEBUG=False)에서는 WhiteNoise가 정적 파일을 보내고,
+# 파일 이름에 내용 해시를 붙여 브라우저가 옛 JS를 캐시로 쓰는 문제를 막음
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+}
 
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
