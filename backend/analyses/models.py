@@ -23,7 +23,7 @@ class ActionLabel(models.TextChoices):
     SEATED_KNEE_EXTENSION = "seated_knee_extension", "A001 앉아서 무릎 펴기"
     SHOULDER_REACH_UP_DOWN = "shoulder_reach_up_down", "A002 팔 위아래로 뻗기"
     SIDE_LYING_LEG_RAISE = "side_lying_leg_raise", "A006 옆으로 누워 다리 들기"
-    UNKNOWN = "UNKNOWN", "판단 불확실"
+    UNKNOWN = "UNKNOWN", "판정 불가"
 
 
 # 사용자가 고르는 예상 동작은 UNKNOWN 제외
